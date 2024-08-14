@@ -1,0 +1,115 @@
+#!/usr/bin/expect -f
+
+# expect script to make the installation fully non-interactive
+
+log_user 0
+
+puts "Starting DPA install..."
+
+set timeout 90
+spawn ./install/dpa_install.sh
+
+expect {
+        "Verifying archive integrity..." { }
+        timeout {
+                puts "Unexpected script output"
+                exit 1
+        }
+
+}
+
+expect {
+        "All good" {
+                puts "Archive Signature Verified. Extracting... "
+        }
+        timeout {
+                puts "Failed to verify signatures"
+                exit 1
+        }
+}
+
+expect {
+        "to view the license..." {
+                after 250
+                send -- "\r\n"
+        }
+        timeout {
+                puts "Failed to wait for EULA"
+                exit 1
+        }
+}
+
+
+puts "Opened license. Simulating Reading..."
+
+# disable the timeout when looking for the prompt
+set timeout 0
+# set a reasonable number of attempts.
+for {set i 0} {$i >= 0} {incr i} {
+    # Commands to execute in the loop
+    if {$i >= 25} {
+        puts "Retry max reached"
+        exit 1
+    }
+
+    send -- "\n"
+
+    for {set j 0} {$j < 10} {incr j} {
+        send -- " "
+        after 10
+    }
+
+    after 10
+
+    expect {
+        "Please enter either" {
+            puts "Detected after prompt #$i"
+            send -- "y\n"
+            break
+        }
+    }
+
+}
+
+set timeout 30
+expect {
+        "to continue..." {
+                send -- "\n"
+        }
+        timeout {
+                puts "Failed to continue"
+                exit 1
+        }
+}
+
+expect {
+        "Proceed with installation?" {
+                send -- "Y\n"
+        }
+        timeout {
+                puts "Failed to reach installation confirmation prompt"
+                exit 1
+        }
+}
+
+expect {
+        "Enter destination directory for DPA" {
+                send -- "/app\n"
+        }
+        timeout {
+                puts "Failed to reach installation directory prompt"
+                exit 1
+        }
+}
+
+expect {
+        "DPA installation complete." {
+                puts "Installation done!"
+                exit 0
+        }
+        timeout {
+                exit 1
+        }
+}
+
+exit 1
